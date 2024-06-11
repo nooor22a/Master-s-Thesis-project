@@ -1,0 +1,111 @@
+import numpy as np
+import scanpy as sc
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import scvi
+import seaborn as sns
+import torch
+from rich import print
+import time
+import psutil
+import scvi
+import GPUtil
+import torch
+from scib_metrics.benchmark import Benchmarker
+
+##adata is preprocessed 
+adata = sc.read_h5ad('Final_object.h5ad')
+
+custom_palette = ['#F8766D', '#D39200', '#93AA00', '#00BA38', '#00C19F',
+                  '#00B9E3', '#619CFF', '#DB72FB', '#FF61C3']
+##HVG selected, here subset = True. If you wanna keep all the genes, use subset =False.Later in scvi model, use adata=adata[:, adata.var["highly_variable"]].copy()
+
+sc.pp.highly_variable_genes(
+    adata,
+    flavor="seurat_v3",
+    n_top_genes=3000,
+    layer="counts",
+    batch_key="unifiedSampleID",
+    subset = True
+)   
+###make sure to have a raw counts layer of your data before normalizing
+#### here: adata.layers['counts'] = adata.X.copy()
+
+
+scvi.model.SCVI.setup_anndata(adata, layer="counts", batch_key="unifiedSampleID")
+model = scvi.model.SCVI(adata, n_layers=2, n_latent=30, gene_likelihood="nb")
+
+
+#### you can delete these
+total_cpu_usage_start = psutil.cpu_percent(interval=None)
+total_mem_usage_start = psutil.virtual_memory().used
+total_gpu_before = GPUtil.getGPUs() if torch.cuda.is_available() else None
+start_time_scvi = time.time()
+##### Train SCVI model
+
+
+model.train()
+
+
+
+# +
+####### Calculate resources
+elapsed_time_scvi = time.time() - start_time_scvi
+cpu_end_scvi = psutil.cpu_percent(interval=None)
+mem_end_scvi = psutil.virtual_memory().used
+
+
+
+SCVI_LATENT_KEY = "X_scVI"
+adata.obsm[SCVI_LATENT_KEY] = model.get_latent_representation()
+sc.pp.neighbors(adata, use_rep=SCVI_LATENT_KEY)
+sc.tl.leiden(adata)
+sc.tl.umap(adata)
+# -
+
+sc.pl.umap(
+    adata,
+    color=["final_level"],
+    frameon=False,
+    save='lineagetrue.pdf',
+    palette = custom_palette
+)
+
+sc.pl.umap(
+    adata,
+    color=["leiden"],
+    frameon=False,
+    save='leiden.pdf',
+    palette = custom_palette
+)
+sc.pl.umap(
+    adata,
+    color=["final_level", "leiden"],
+    frameon=False,
+    save='lineagetrue.pdf',
+    palette = custom_palette
+)
+
+""
+###scPoli
+
+
+
+""
+from scib_metrics.benchmark import Benchmarker
+bm = Benchmarker(
+    adata,
+    batch_key="unifiedSampleID",
+    label_key="final_level",
+    embedding_obsm_keys=['X_pca', 'X_scVI', 'X_scpoli'],
+    n_jobs=-1,
+)
+bm.benchmark()
+
+df2 = bm.get_results(min_max_scale=False)
+print(df2)
+df2.to_csv('resultsintegration.csv', index=False)
+#####i also like to save adata_full.obsm["X_scpoli"] = scpoli_model.get_latent(adata_full,mean=True) to calc metrics but not really necessary and takes up memory####
+adata_full.write("integrated_scpoli.h5ad")
+##downstream analysis can be followed here: https://docs.scarches.org/en/latest/scpoli_surgery_pipeline.html
