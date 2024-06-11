@@ -1,4 +1,4 @@
-# Masters_Thesis-project
+#Thesis
 
 # Optimizing Single-Cell RNA Sequencing Integration: A Dual-Pipeline Approach
 Comparative Benchmarking of Biological Conservation, Batch Correction, and Computational Efficiency
