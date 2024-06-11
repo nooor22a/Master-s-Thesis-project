@@ -138,7 +138,7 @@ mem_end_scvi = psutil.virtual_memory().used
 mem_usage_diff = mem_end_scvi - total_mem_usage_start
 
 
-print("for scvi training: ")
+print("for scpoli training: ")
 
 print(f"Elapsed time for model training: {elapsed_time_scvi} seconds")
 print(f"CPU usage at start: {total_cpu_usage_start}%")
@@ -156,10 +156,9 @@ if total_gpu_before:
 
 
 
-
+##save model to reuse later
 scpoli_model.save("modelscpoli")
-scpoli_model.get_conditional_embeddings().write_h5ad(
-    "sample_embedding.h5ad")
+scpoli_model.get_conditional_embeddings().write_h5ad("sample_embedding.h5ad")
 
 adata.obsm["X_scpoli"] = scpoli_model.get_latent(
     adata,
