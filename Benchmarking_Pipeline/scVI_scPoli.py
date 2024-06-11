@@ -89,10 +89,66 @@ sc.pl.umap(
 
 ""
 ###scPoli
+from scarches.models.scpoli import scPoli
+import torch
+
+# +
+scpoli_model = scPoli(
+    adata=adata,
+    unknown_ct_names=["nan"],
+    condition_keys="batch",
+    cell_type_keys=["level_1", "level_2", "final_level"],
+    embedding_dims=5
+)
+
+early_stopping_kwargs = {
+    "early_stopping_metric": "val_prototype_loss",
+    "mode": "min",
+    "threshold": 0,
+    "patience": 20,
+    "reduce_lr": True,
+    "lr_patience": 13,
+    "lr_factor": 0.1,
+}
+total_cpu_usage_start = psutil.cpu_percent(interval=None)
+total_mem_usage_start = psutil.virtual_memory().used
+total_gpu_before = GPUtil.getGPUs() if torch.cuda.is_available() else None
+start_time_scvi = time.time()
+
+scpoli_model.train(
+    unlabeled_prototype_training=False,
+    n_epochs=7,
+    pretraining_epochs=5,
+    early_stopping_kwargs=early_stopping_kwargs,
+    eta=10,
+    alpha_epoch_anneal=100
+)
+elapsed_time_scvi = time.time() - start_time_scvi
+cpu_end_scvi = psutil.cpu_percent(interval=None)
+mem_end_scvi = psutil.virtual_memory().used
+mem_usage_diff = mem_end_scvi - total_mem_usage_start
 
 
+print("for scpoli training: ")
+
+print(f"Elapsed time for model training: {elapsed_time_scvi} seconds")
+print(f"CPU usage at start: {total_cpu_usage_start}%")
+print(f"CPU usage after training: {cpu_end_scvi}%")
+print(f"Memory usage at start: {total_mem_usage_start / (1024 ** 3):.2f} GB")
+print(f"Memory usage after training: {mem_end_scvi / (1024 ** 3):.2f} GB")
+print(f"Memory usage difference: {mem_usage_diff / (1024 ** 3):.2f} GB")
+
+if total_gpu_before:
+    total_gpu_after = GPUtil.getGPUs()
+    for i, gpu in enumerate(total_gpu_after):
+        print(f"GPU {i} usage before: {total_gpu_before[i].memoryUsed / 1024:.2f} GB")
+        print(f"GPU {i} usage after: {gpu.memoryUsed / 1024:.2f} GB")
+        print(f"GPU {i} usage difference: {(gpu.memoryUsed - total_gpu_before[i].memoryUsed) / 1024:.2f} GB")
+
+adata.obsm["X_scpoli"] = scpoli_model.get_latent(adata,mean=True) 
 
 ""
+##calc metrics
 from scib_metrics.benchmark import Benchmarker
 bm = Benchmarker(
     adata,
@@ -106,6 +162,4 @@ bm.benchmark()
 df2 = bm.get_results(min_max_scale=False)
 print(df2)
 df2.to_csv('resultsintegration.csv', index=False)
-#####i also like to save adata_full.obsm["X_scpoli"] = scpoli_model.get_latent(adata_full,mean=True) to calc metrics but not really necessary and takes up memory####
-adata_full.write("integrated_scpoli.h5ad")
-##downstream analysis can be followed here: https://docs.scarches.org/en/latest/scpoli_surgery_pipeline.html
+
