@@ -1,0 +1,35 @@
+##Figures code
+##UMAPs are generated within the final integration code
+
+_
+##Highlighted graphs
+
+import matplotlib.pyplot as plt
+##add file_path
+adata =sc.read_h5ad(file_path)
+def plot_umap_highlight_batch(adata, batch_key, batch_value, filename):
+    
+    adata_copy = adata.copy()
+
+    
+    adata_copy.obs['highlight'] = 'gray'
+    adata_copy.obs.loc[adata_copy.obs[batch_key] == batch_value, 'highlight'] = 'highlight'
+
+    
+    colors = ['gray', 'blue']
+
+    
+    sc.pl.umap(adata_copy, color='highlight', palette=colors, show=False)
+
+    plt.savefig(filename)
+    plt.close()
+
+
+batch_key = 'batch'  
+batches = ['2d', '3d', 'fetal']
+
+for batch_value in batches:
+    filename = f'umap_batch_{batch_value}.png'
+    plot_umap_highlight_batch(adata, batch_key, batch_value, filename)
+
+
