@@ -1,8 +1,8 @@
 ##Puhti sh scripts submitted to the system, GPU 
 
 #!/bin/bash
-#SBATCH --job-name=integratescvigpu
-#SBATCH --account=project_2009478
+#SBATCH --job-name=integrate
+#SBATCH --account=project_number
 #SBATCH --time=10:30:00
 #SBATCH --mem=370G
 #SBATCH --ntasks=1
